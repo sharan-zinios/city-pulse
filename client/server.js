@@ -22,8 +22,8 @@ app.use(express.static('public'));
 
 // Configuration
 const PORT = process.env.PORT || 3002;
-const DB_PATH = path.join(__dirname, '..', 'local_dev', 'local_incidents.db');
-const AGENT_DB_PATH = path.join(__dirname, '..', 'local_dev', 'local_incidents.db');
+const DB_PATH = '/app/local_dev/local_incidents.db';
+const AGENT_DB_PATH = '/app/local_dev/local_incidents.db';
 
 // Global state
 let connectedClients = 0;
