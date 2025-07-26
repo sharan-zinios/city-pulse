@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memgraph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memgraph
+  template:
+    metadata:
+      labels:
+        app: memgraph
+    spec:
+      containers:
+      - name: memgraph
+        image: memgraph/memgraph:2.14
+        ports:
+        - containerPort: 7687
+        - containerPort: 7444
+        env:
+        - name: MEMGRAPH
+          value: "--log-level=TRACE --also-log-to-stderr"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memgraph-service
+spec:
+  selector:
+    app: memgraph
+  ports:
+  - name: bolt
+    port: 7687
+    targetPort: 7687
+  - name: http
+    port: 7444
+    targetPort: 7444
+  type: ClusterIP

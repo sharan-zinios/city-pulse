@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Pulse - Real-Time Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .notification-high {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        .notification-medium {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .notification-low {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #1f2937, #374151);
+            border: 1px solid #4b5563;
+        }
+        
+        .map-container {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border: 1px solid #334155;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Main Dashboard Component
+        function Dashboard() {
+            const [incidents, setIncidents] = useState([]);
+            const [notifications, setNotifications] = useState([]);
+            const [stats, setStats] = useState({
+                totalIncidents: 0,
+                highPriority: 0,
+                processingRate: 0,
+                agentActivity: {
+                    notification_agent: 0,
+                    trend_analysis_agent: 0,
+                    resource_allocation_agent: 0,
+                    news_insights_agent: 0
+                }
+            });
+            const [isConnected, setIsConnected] = useState(false);
+            const socketRef = useRef(null);
+
+            useEffect(() => {
+                // Connect to WebSocket server
+                socketRef.current = io('http://localhost:3002');
+                
+                socketRef.current.on('connect', () => {
+                    setIsConnected(true);
+                    console.log('Connected to City Pulse server');
+                });
+
+                socketRef.current.on('disconnect', () => {
+                    setIsConnected(false);
+                });
+
+                socketRef.current.on('new_incident', (incident) => {
+                    setIncidents(prev => [incident, ...prev.slice(0, 49)]);
+                });
+
+                socketRef.current.on('notification', (notification) => {
+                    setNotifications(prev => [notification, ...prev.slice(0, 19)]);
+                });
+
+                socketRef.current.on('stats_update', (newStats) => {
+                    setStats(newStats);
+                });
+
+                return () => {
+                    if (socketRef.current) {
+                        socketRef.current.disconnect();
+                    }
+                };
+            }, []);
+
+            return (
+                <div className="min-h-screen bg-gray-900 p-6">
+                    <Header isConnected={isConnected} />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                        <div className="lg:col-span-2 space-y-6">
+                            <StatsPanel stats={stats} />
+                            <IncidentFeed incidents={incidents} />
+                        </div>
+                        <div className="space-y-6">
+                            <NotificationPanel notifications={notifications} />
+                            <AgentActivity agents={stats.agentActivity} />
+                            <IncidentMap incidents={incidents.slice(0, 10)} />
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Header Component
+        function Header({ isConnected }) {
+            return (
+                <div className="flex items-center justify-between bg-gray-800 rounded-lg p-6 shadow-lg">
+                    <div className="flex items-center space-x-4">
+                        <i className="fas fa-city text-blue-400 text-3xl"></i>
+                        <div>
+                            <h1 className="text-3xl font-bold text-white">City Pulse</h1>
+                            <p className="text-gray-400">Real-Time Incident Management - Bengaluru</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <div className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+                            isConnected ? 'bg-green-600' : 'bg-red-600'
+                        }`}>
+                            <div className={`w-3 h-3 rounded-full ${
+                                isConnected ? 'bg-green-300 pulse-animation' : 'bg-red-300'
+                            }`}></div>
+                            <span className="text-sm font-medium">
+                                {isConnected ? 'Connected' : 'Disconnected'}
+                            </span>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-sm text-gray-400">Local Time</div>
+                            <div className="font-mono text-lg">{new Date().toLocaleTimeString()}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Stats Panel Component
+        function StatsPanel({ stats }) {
+            return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        icon="fas fa-exclamation-triangle"
+                        title="Total Incidents"
+                        value={stats.totalIncidents}
+                        color="blue"
+                    />
+                    <StatCard
+                        icon="fas fa-fire"
+                        title="High Priority"
+                        value={stats.highPriority}
+                        color="red"
+                    />
+                    <StatCard
+                        icon="fas fa-tachometer-alt"
+                        title="Processing Rate"
+                        value={`${stats.processingRate}/min`}
+                        color="green"
+                    />
+                    <StatCard
+                        icon="fas fa-robot"
+                        title="Active Agents"
+                        value={Object.keys(stats.agentActivity).length}
+                        color="purple"
+                    />
+                </div>
+            );
+        }
+
+        // Individual Stat Card
+        function StatCard({ icon, title, value, color }) {
+            const colorClasses = {
+                blue: 'text-blue-400 bg-blue-900',
+                red: 'text-red-400 bg-red-900',
+                green: 'text-green-400 bg-green-900',
+                purple: 'text-purple-400 bg-purple-900'
+            };
+
+            return (
+                <div className="stat-card rounded-lg p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-400 text-sm">{title}</p>
+                            <p className="text-2xl font-bold text-white mt-1">{value}</p>
+                        </div>
+                        <div className={`p-3 rounded-full ${colorClasses[color]}`}>
+                            <i className={`${icon} text-xl`}></i>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Incident Feed Component
+        function IncidentFeed({ incidents }) {
+            return (
+                <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                            <i className="fas fa-stream mr-2 text-blue-400"></i>
+                            Live Incident Feed
+                        </h2>
+                        <span className="text-sm text-gray-400">Last 50 incidents</span>
+                    </div>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {incidents.length === 0 ? (
+                            <div className="text-center text-gray-400 py-8">
+                                <i className="fas fa-clock text-3xl mb-2"></i>
+                                <p>Waiting for incidents...</p>
+                            </div>
+                        ) : (
+                            incidents.map((incident, index) => (
+                                <IncidentCard key={incident.id || index} incident={incident} />
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // Individual Incident Card
+        function IncidentCard({ incident }) {
+            const getPriorityColor = (priority) => {
+                if (priority >= 8) return 'border-red-500 bg-red-900 bg-opacity-20';
+                if (priority >= 6) return 'border-yellow-500 bg-yellow-900 bg-opacity-20';
+                return 'border-green-500 bg-green-900 bg-opacity-20';
+            };
+
+            const getEventIcon = (eventType) => {
+                const icons = {
+                    traffic_accident: 'fas fa-car-crash',
+                    pothole: 'fas fa-road',
+                    power_outage: 'fas fa-bolt',
+                    water_supply: 'fas fa-tint',
+                    construction: 'fas fa-hard-hat',
+                    waste_management: 'fas fa-trash',
+                    street_lighting: 'fas fa-lightbulb',
+                    tree_fall: 'fas fa-tree',
+                    flooding: 'fas fa-water',
+                    fire_emergency: 'fas fa-fire'
+                };
+                return icons[eventType] || 'fas fa-exclamation-circle';
+            };
+
+            return (
+                <div className={`slide-in border-l-4 p-4 rounded-r-lg ${getPriorityColor(incident.priority_score)}`}>
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                            <div className="p-2 bg-gray-700 rounded-full">
+                                <i className={`${getEventIcon(incident.event_type)} text-white`}></i>
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                    <h3 className="font-semibold text-white capitalize">
+                                        {incident.event_type?.replace('_', ' ')}
+                                    </h3>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        incident.priority_score >= 8 ? 'bg-red-600' :
+                                        incident.priority_score >= 6 ? 'bg-yellow-600' : 'bg-green-600'
+                                    }`}>
+                                        Priority: {incident.priority_score}
+                                    </span>
+                                </div>
+                                <p className="text-gray-300 text-sm mt-1">{incident.description}</p>
+                                <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
+                                    <span><i className="fas fa-map-marker-alt mr-1"></i>{incident.location_name}</span>
+                                    <span><i className="fas fa-building mr-1"></i>{incident.assigned_department}</span>
+                                    <span><i className="fas fa-clock mr-1"></i>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Notification Panel Component
+        function NotificationPanel({ notifications }) {
+            return (
+                <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                        <i className="fas fa-bell mr-2 text-yellow-400"></i>
+                        Live Notifications
+                    </h2>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                            <div className="text-center text-gray-400 py-4">
+                                <i className="fas fa-bell-slash text-2xl mb-2"></i>
+                                <p>No notifications</p>
+                            </div>
+                        ) : (
+                            notifications.map((notification, index) => (
+                                <NotificationCard key={index} notification={notification} />
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // Individual Notification Card
+        function NotificationCard({ notification }) {
+            const getNotificationClass = (type) => {
+                if (type?.includes('EMERGENCY')) return 'notification-high';
+                if (type?.includes('ALERT')) return 'notification-medium';
+                return 'notification-low';
+            };
+
+            return (
+                <div className={`slide-in p-3 rounded-lg text-white ${getNotificationClass(notification.type)}`}>
+                    <div className="flex items-start space-x-2">
+                        <i className="fas fa-exclamation-triangle text-white mt-1"></i>
+                        <div className="flex-1">
+                            <p className="font-medium text-sm">{notification.message}</p>
+                            <p className="text-xs opacity-80 mt-1">
+                                {new Date(notification.timestamp).toLocaleTimeString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Agent Activity Component
+        function AgentActivity({ agents }) {
+            const agentNames = {
+                notification_agent: 'Notification Agent',
+                trend_analysis_agent: 'Trend Analysis',
+                resource_allocation_agent: 'Resource Allocation',
+                news_insights_agent: 'News Insights'
+            };
+
+            const agentIcons = {
+                notification_agent: 'fas fa-bell',
+                trend_analysis_agent: 'fas fa-chart-line',
+                resource_allocation_agent: 'fas fa-users',
+                news_insights_agent: 'fas fa-newspaper'
+            };
+
+            return (
+                <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                        <i className="fas fa-robot mr-2 text-green-400"></i>
+                        AI Agent Activity
+                    </h2>
+                    <div className="space-y-3">
+                        {Object.entries(agents).map(([agentKey, count]) => (
+                            <div key={agentKey} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                                <div className="flex items-center space-x-3">
+                                    <i className={`${agentIcons[agentKey]} text-green-400`}></i>
+                                    <span className="text-white text-sm">{agentNames[agentKey]}</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-green-400 font-bold">{count}</span>
+                                    <div className="w-2 h-2 bg-green-400 rounded-full pulse-animation"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Incident Map Component (Simplified)
+        function IncidentMap({ incidents }) {
+            const areaStats = incidents.reduce((acc, incident) => {
+                const area = incident.area_category || 'unknown';
+                acc[area] = (acc[area] || 0) + 1;
+                return acc;
+            }, {});
+
+            return (
+                <div className="map-container rounded-lg p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                        <i className="fas fa-map mr-2 text-blue-400"></i>
+                        Area Distribution
+                    </h2>
+                    <div className="space-y-3">
+                        {Object.entries(areaStats).map(([area, count]) => (
+                            <div key={area} className="flex items-center justify-between">
+                                <span className="text-white capitalize">{area}</span>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-20 bg-gray-600 rounded-full h-2">
+                                        <div 
+                                            className="bg-blue-400 h-2 rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.min(100, (count / Math.max(...Object.values(areaStats))) * 100)}%` }}
+                                        ></div>
+                                    </div>
+                                    <span className="text-blue-400 font-bold text-sm w-8">{count}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>

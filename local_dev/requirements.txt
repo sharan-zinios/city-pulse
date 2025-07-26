@@ -1,0 +1,20 @@
+# Local Development Requirements for City Pulse Simulator
+# Minimal dependencies for local testing without Google Cloud
+
+# Core Python libraries (built-in)
+# sqlite3 - built into Python
+# json - built into Python  
+# datetime - built into Python
+# threading - built into Python
+# concurrent.futures - built into Python
+# argparse - built into Python
+# logging - built into Python
+
+# External dependencies (minimal set)
+requests>=2.31.0
+
+# Optional: For enhanced local development
+python-dateutil>=2.8.2
+
+# Note: This is a minimal requirements file for local development
+# For production deployment, use the main requirements.txt with full Google Cloud dependencies

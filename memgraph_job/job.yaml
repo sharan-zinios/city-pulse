@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ingest-events
+spec:
+  template:
+    spec:
+      containers:
+      - name: loader
+        image: memgraph/memgraph:2.14
+        command: ["/bin/bash","-c"]
+        args:
+          - |
+            apt-get update && apt-get install -y python3-pip
+            pip3 install neo4j google-cloud-storage
+            python3 -c "
+            import json, os
+            from neo4j import GraphDatabase
+            from google.cloud import storage
+            
+            # Download events.json from GCS
+            client = storage.Client()
+            bucket = client.bucket('${PROJECT_ID}-bengaluru-events-media')
+            blob = bucket.blob('events.json')
+            blob.download_to_filename('events.json')
+            
+            # Connect to Memgraph
+            driver = GraphDatabase.driver('bolt://memgraph-service:7687', auth=('', ''))
+            events = json.load(open('events.json'))
+            
+            with driver.session() as session:
+                for ev in events:
+                    session.run('''
+                        MERGE (e:Event {id: \$id})
+                        SET e.type=\$type, e.timestamp=\$ts, e.text=\$text
+                        MERGE (p:Place {name:\$place})
+                        SET p.lat=\$lat, p.lon=\$lon
+                        MERGE (e)-[:AT]->(p)
+                    ''', id=ev['id'], type=ev['type'], ts=ev['timestamp'],
+                          text=ev['text'], place=ev['place'], lat=ev['lat'], lon=ev['lon'])
+            print('Loaded into Memgraph')
+            "
+      restartPolicy: Never
+  backoffLimit: 4

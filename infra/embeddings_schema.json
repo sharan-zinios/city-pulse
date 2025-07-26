@@ -1,0 +1,189 @@
+[
+  {
+    "name": "id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique incident identifier"
+  },
+  {
+    "name": "event_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Primary incident category"
+  },
+  {
+    "name": "sub_category",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Specific incident subcategory"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Human-readable incident description"
+  },
+  {
+    "name": "keywords",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Extracted keywords for search"
+  },
+  {
+    "name": "language",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Description language"
+  },
+  {
+    "name": "coordinates",
+    "type": "FLOAT",
+    "mode": "REPEATED",
+    "description": "Latitude and longitude coordinates"
+  },
+  {
+    "name": "location_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Human-readable location/landmark"
+  },
+  {
+    "name": "area_category",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Spatial context category"
+  },
+  {
+    "name": "ward_number",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "BBMP administrative ward number"
+  },
+  {
+    "name": "pincode",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Bengaluru postal code"
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Incident timestamp"
+  },
+  {
+    "name": "estimated_duration",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Expected resolution time in minutes"
+  },
+  {
+    "name": "actual_duration",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Actual resolution time in minutes"
+  },
+  {
+    "name": "peak_hours",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "During traffic peak hours"
+  },
+  {
+    "name": "severity_level",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Incident severity classification"
+  },
+  {
+    "name": "priority_score",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Calculated priority score"
+  },
+  {
+    "name": "impact_radius",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Affected area radius in meters"
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Reporting source"
+  },
+  {
+    "name": "verified",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Verification confidence score"
+  },
+  {
+    "name": "reporter_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Anonymous reporter identifier"
+  },
+  {
+    "name": "verification_count",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of confirmations"
+  },
+  {
+    "name": "media_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Associated media type"
+  },
+  {
+    "name": "media_url",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Media file URL/reference"
+  },
+  {
+    "name": "event_status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Current incident status"
+  },
+  {
+    "name": "assigned_department",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Responsible government department"
+  },
+  {
+    "name": "resolution_notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resolution description"
+  },
+  {
+    "name": "weather_condition",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Weather at incident time"
+  },
+  {
+    "name": "traffic_density",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Traffic level at location"
+  },
+  {
+    "name": "embedding",
+    "type": "REPEATED",
+    "mode": "NULLABLE",
+    "fields": [
+      {
+        "name": "value",
+        "type": "FLOAT",
+        "mode": "NULLABLE"
+      }
+    ],
+    "description": "Text embedding vector"
+  }
+]

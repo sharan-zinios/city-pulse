@@ -1,0 +1,58 @@
+services:
+  # City Pulse Dashboard (Client UI)
+  dashboard:
+    build: 
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: city-pulse-dashboard
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./local_dev:/app/local_dev  # Mount local_dev directory
+      - dashboard-data:/app/data
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    depends_on:
+      - simulator
+    networks:
+      - city-pulse-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Local Incident Simulator
+  simulator:
+    build:
+      context: .
+      dockerfile: local_dev/Dockerfile
+    container_name: city-pulse-simulator
+    volumes:
+      - ./local_dev:/app/local_dev  # Mount local_dev directory
+      - ./historical_incidents.json:/app/historical_incidents.json:ro
+      - simulator-data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATASET_FILE=/app/historical_incidents.json
+      - BATCH_SIZE=7
+      - BATCH_INTERVAL=20
+    networks:
+      - city-pulse-network
+    restart: unless-stopped
+    command: ["python", "local_dev/realtime_simulator.py", "--dataset", "/app/historical_incidents.json"]
+
+volumes:
+  dashboard-data:
+    driver: local
+  simulator-data:
+    driver: local
+
+networks:
+  city-pulse-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

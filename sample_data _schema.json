@@ -1,0 +1,73 @@
+{
+    "id": "INC_BLR_2025_009858",
+    "event_type": "construction",
+    "sub_category": "building_construction",
+    "description": "Incident reported at Rajajinagar Metro Station.",
+    "keywords": [
+        "construction",
+        "work",
+        "diversion",
+        "development",
+        "infrastructure"
+    ],
+    "language": "en",
+    "coordinates": [
+        12.993214499959844,
+        77.54261098669602
+    ],
+    "location_name": "Rajajinagar Metro Station",
+    "area_category": "metro_station",
+    "ward_number": 46,
+    "pincode": "560021",
+    "timestamp": "2025-07-09T04:43:00Z",
+    "estimated_duration": 46,
+    "actual_duration": 173,
+    "peak_hours": false,
+    "severity_level": "low",
+    "priority_score": 0.35,
+    "impact_radius": 413,
+    "source": "government",
+    "verified": 0.8,
+    "reporter_id": "RPT_214333",
+    "verification_count": 7,
+    "media_type": "text_only",
+    "media_url": "https://storage.googleapis.com/citypulse-media/construction_1249.jpg",
+    "event_status": "verified",
+    "assigned_department": "BBMP",
+    "resolution_notes": null,
+    "weather_condition": "sunny",
+    "traffic_density": "moderate"
+}
+
+
+| Field Name | Data Type | Description | Example Values | Required |
+|------------|-----------|-------------|----------------|----------|
+| `id` | String | Unique incident identifier | `"INC_BLR_2025_000001"` | ✅ |
+| `event_type` | String | Primary incident category | `"traffic_accident"`, `"pothole"`, `"power_outage"` | ✅ |
+| `sub_category` | String | Specific incident subcategory | `"minor_collision"`, `"major_pothole"`, `"transformer_failure"` | ✅ |
+| `description` | String | Human-readable incident description | `"Vehicle collision at Silk Board Junction causing traffic disruption."` | ✅ |
+| `keywords` | Array[String] | Extracted keywords for search | `["traffic", "accident", "collision", "silk", "board"]` | ✅ |
+| `language` | String | Description language (always "en") | `"en"` | ✅ |
+| `coordinates` | Array[Float] | [latitude, longitude] in WGS-84 | `[12.9176, 77.6237]` | ✅ |
+| `location_name` | String | Human-readable location/landmark | `"Silk Board Junction, HSR Layout"` | ✅ |
+| `area_category` | String | Spatial context category | `"residential"`, `"commercial"`, `"highway"`, `"metro_station"`, `"hospital_zone"`, `"industrial"` | ✅ |
+| `ward_number` | Integer | BBMP administrative ward (1-198) | `174` | ✅ |
+| `pincode` | String | Bengaluru postal code | `"560102"` | ✅ |
+| `timestamp` | String | ISO 8601 incident timestamp | `"2025-07-26T16:45:00Z"` | ✅ |
+| `estimated_duration` | Integer | Expected resolution time (minutes) | `180` | ✅ |
+| `actual_duration` | Integer/Null | Actual resolution time (minutes) | `165` or `null` | ❌ |
+| `peak_hours` | Boolean | During traffic peak hours (7-10 AM, 5-9 PM) | `true`, `false` | ✅ |
+| `severity_level` | String | Incident severity classification | `"low"`, `"medium"`, `"high"`, `"critical"` | ✅ |
+| `priority_score` | Float | Calculated priority (0.0-1.0) | `0.85` | ✅ |
+| `impact_radius` | Integer | Affected area radius (meters) | `1000` | ✅ |
+| `source` | String | Reporting source | `"citizen_report"`, `"sensor_feed"`, `"twitter"`, `"government"`, `"cctv"`, `"traffic_camera"`, `"mobile_app"` | ✅ |
+| `verified` | Float | Verification confidence (0.0-1.0) | `0.9` | ✅ |
+| `reporter_id` | String | Anonymous reporter identifier | `"RPT_386478"` | ✅ |
+| `verification_count` | Integer | Number of confirmations (1-20) | `3` | ✅ |
+| `media_type` | String | Associated media type | `"image"`, `"video"`, `"audio"`, `"text_only"` | ✅ |
+| `media_url` | String | Media file URL/reference | `"https://storage.googleapis.com/citypulse-media/vid_001.mp4"` | ✅ |
+| `event_status` | String | Current incident status | `"reported"`, `"verified"`, `"in_progress"`, `"resolved"`, `"false_alarm"`, `"duplicate"` | ✅ |
+| `assigned_department` | String | Responsible government department | `"BBMP"`, `"Traffic_Police"`, `"BESCOM"`, `"BWSSB"`, `"Fire_Department"` | ✅ |
+| `resolution_notes` | String/Null | Resolution description | `"Issue resolved by BBMP team"` or `null` | ❌ |
+| `weather_condition` | String | Weather at incident time | `"sunny"`, `"rainy"`, `"foggy"`, `"cloudy"` | ✅ |
+| `traffic_density` | String | Traffic level at location | `"low"`, `"moderate"`, `"high"`, `"congested"` | ✅ |
