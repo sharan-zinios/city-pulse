@@ -5,6 +5,7 @@ const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,8 +23,12 @@ app.use(express.static('public'));
 
 // Configuration
 const PORT = process.env.PORT || 3002;
-const DB_PATH = '/app/local_dev/local_incidents.db';
-const AGENT_DB_PATH = '/app/local_dev/local_incidents.db';
+const DB_PATH = '/home/varshith/Desktop/city-pulse-new/local_dev/local_incidents.db';
+const AGENT_DB_PATH = '/home/varshith/Desktop/city-pulse-new/local_dev/local_incidents.db';
+const GEMINI_API_KEY = 'AIzaSyAexl1B96BaGsyDN27BKJhZ5YeTkI_dkV8';
+
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Global state
 let connectedClients = 0;
@@ -108,6 +113,261 @@ app.get('/api/incidents/recent', (req, res) => {
 
 app.get('/api/stats', (req, res) => {
     res.json(stats);
+});
+
+// AI Insights endpoint
+app.get('/api/insights', async (req, res) => {
+    if (!db) {
+        return res.status(503).json({ error: 'Database not available' });
+    }
+    
+    try {
+        const insights = await generateAIInsights();
+        res.json({ insights });
+    } catch (error) {
+        console.error('❌ Error generating AI insights:', error);
+        res.status(500).json({ error: 'Failed to generate insights' });
+    }
+});
+
+// AI Insights generation function
+async function generateAIInsights() {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject(new Error('Database not available'));
+            return;
+        }
+
+        // Get recent incidents data for analysis
+        const query = `
+            SELECT 
+                event_type,
+                severity_level,
+                priority_score,
+                location_name,
+                area_category,
+                timestamp,
+                weather_condition,
+                traffic_density,
+                assigned_department,
+                event_status
+            FROM incidents 
+            WHERE datetime(timestamp) >= datetime('now', '-24 hours')
+            ORDER BY priority_score DESC 
+            LIMIT 50
+        `;
+
+        db.all(query, [], async (err, rows) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            try {
+                // Prepare data for AI analysis
+                const incidentSummary = prepareIncidentSummary(rows);
+                
+                // Generate AI insights using Gemini
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                
+                const prompt = `
+                You are a city management AI assistant analyzing real-time incident data for Bengaluru city. 
+                
+                Based on the following incident data from the last 24 hours, provide key insights in JSON format:
+
+                Incident Summary:
+                ${incidentSummary}
+
+                Please provide insights in this exact JSON structure:
+                {
+                    "priority_alerts": [
+                        {
+                            "type": "string",
+                            "message": "string",
+                            "severity": "high|medium|low",
+                            "affected_areas": ["string"]
+                        }
+                    ],
+                    "trends": [
+                        {
+                            "category": "string",
+                            "trend": "increasing|decreasing|stable",
+                            "description": "string",
+                            "impact": "string"
+                        }
+                    ],
+                    "recommendations": [
+                        {
+                            "action": "string",
+                            "priority": "high|medium|low",
+                            "department": "string",
+                            "timeline": "string"
+                        }
+                    ],
+                    "area_analysis": [
+                        {
+                            "area": "string",
+                            "incident_count": "number",
+                            "dominant_type": "string",
+                            "status": "string"
+                        }
+                    ]
+                }
+
+                Focus on actionable insights, patterns, and immediate priority areas that need attention.
+                `;
+
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const text = response.text();
+                
+                // Parse the JSON response
+                let aiInsights;
+                try {
+                    // Extract JSON from the response (remove any markdown formatting)
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        aiInsights = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error('No valid JSON found in response');
+                    }
+                } catch (parseError) {
+                    console.warn('Failed to parse AI response as JSON, using fallback');
+                    aiInsights = createFallbackInsights(rows);
+                }
+
+                // Add metadata
+                aiInsights.generated_at = new Date().toISOString();
+                aiInsights.data_period = '24 hours';
+                aiInsights.total_incidents_analyzed = rows.length;
+
+                resolve(aiInsights);
+
+            } catch (error) {
+                console.error('Error generating AI insights:', error);
+                // Fallback to rule-based insights
+                resolve(createFallbackInsights(rows));
+            }
+        });
+    });
+}
+
+function prepareIncidentSummary(incidents) {
+    const summary = {
+        total: incidents.length,
+        by_type: {},
+        by_severity: {},
+        by_area: {},
+        high_priority: incidents.filter(i => i.priority_score >= 8).length,
+        active_incidents: incidents.filter(i => i.event_status === 'in_progress').length
+    };
+
+    incidents.forEach(incident => {
+        // Count by type
+        summary.by_type[incident.event_type] = (summary.by_type[incident.event_type] || 0) + 1;
+        
+        // Count by severity
+        summary.by_severity[incident.severity_level] = (summary.by_severity[incident.severity_level] || 0) + 1;
+        
+        // Count by area
+        summary.by_area[incident.area_category] = (summary.by_area[incident.area_category] || 0) + 1;
+    });
+
+    return JSON.stringify(summary, null, 2);
+}
+
+function createFallbackInsights(incidents) {
+    const highPriority = incidents.filter(i => i.priority_score >= 8);
+    const trafficIncidents = incidents.filter(i => i.event_type.includes('traffic'));
+    
+    return {
+        priority_alerts: [
+            {
+                type: "High Priority Incidents",
+                message: `${highPriority.length} high-priority incidents require immediate attention`,
+                severity: highPriority.length > 5 ? "high" : "medium",
+                affected_areas: [...new Set(highPriority.map(i => i.location_name))].slice(0, 3)
+            }
+        ],
+        trends: [
+            {
+                category: "Traffic",
+                trend: trafficIncidents.length > 10 ? "increasing" : "stable",
+                description: `${trafficIncidents.length} traffic-related incidents in the last 24 hours`,
+                impact: "Moderate impact on city mobility"
+            }
+        ],
+        recommendations: [
+            {
+                action: "Deploy additional resources to high-priority areas",
+                priority: "high",
+                department: "BBMP",
+                timeline: "Immediate"
+            }
+        ],
+        area_analysis: [
+            {
+                area: "Multiple areas",
+                incident_count: incidents.length,
+                dominant_type: "mixed",
+                status: "monitoring"
+            }
+        ],
+        generated_at: new Date().toISOString(),
+        data_period: '24 hours',
+        total_incidents_analyzed: incidents.length
+    };
+}
+
+// Location details endpoint for map clicks
+app.get('/api/incidents/location/:lat/:lng', (req, res) => {
+    if (!db) {
+        return res.status(503).json({ error: 'Database not available' });
+    }
+    
+    const { lat, lng } = req.params;
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    
+    const query = `
+        SELECT * FROM incidents 
+        WHERE ABS(latitude - ?) < 0.01 AND ABS(longitude - ?) < 0.01
+        ORDER BY timestamp DESC 
+        LIMIT 10
+    `;
+    
+    db.all(query, [latitude, longitude], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching location incidents:', err);
+            res.status(500).json({ error: 'Database error' });
+            return;
+        }
+        res.json({ incidents: rows || [] });
+    });
+});
+
+// Heat map data endpoint
+app.get('/api/heatmap', (req, res) => {
+    if (!db) {
+        return res.status(503).json({ error: 'Database not available' });
+    }
+    
+    const query = `
+        SELECT latitude, longitude, priority_score as weight
+        FROM incidents 
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+        ORDER BY timestamp DESC 
+        LIMIT 1000
+    `;
+    
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching heat map data:', err);
+            res.status(500).json({ error: 'Database error' });
+            return;
+        }
+        res.json({ data: rows || [] });
+    });
 });
 
 // Database query functions
@@ -281,7 +541,7 @@ function monitorAgentActivity() {
     }
     
     const query = `
-        SELECT * FROM agent_activity 
+        SELECT * FROM agent_activities 
         ORDER BY rowid DESC 
         LIMIT 5
     `;

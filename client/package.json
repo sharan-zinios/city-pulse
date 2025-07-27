@@ -21,9 +21,10 @@
   "author": "City Pulse Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
-    "cors": "^2.8.5",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
