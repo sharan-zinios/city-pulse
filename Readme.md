@@ -1,278 +1,1062 @@
-notes
+# 🌆 City Pulse - Intelligent Urban Incident Management System
 
-production-grade blueprint that keeps 100 % inside Google Cloud, uses
-• Vertex AI gemini-embedding-001 (3072-dim) for text / image embeddings,
-• Memgraph on GKE (Autopilot) as the scalable graph engine (Neo4j-compatible, Cypher),
-• Cloud Storage for raw media,
-• BigQuery + Vector Search for hybrid analytics,  
-• Cloud Run for the serving API.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Ready-4285F4)](https://cloud.google.com/)
+[![Terraform](https://img.shields.io/badge/Terraform-v1.0+-purple)](https://terraform.io/)
 
+A **production-grade, AI-powered incident management system** for smart cities, specifically designed for Bengaluru. This comprehensive platform combines real-time data processing, intelligent agents, vector search, and graph analytics to enable proactive urban management and rapid incident response.
 
+## 🏗️ System Architecture
 
+### **Core Technologies**
 
-The flow is broken into five bite-sized Terraform + Python modules you can run in sequence.
-────────────────────────────
-One-click infrastructure
-────────────────────────────
-infra/main.tf (simplified snippet)
-hcl
-Copy
-provider "google" {
-  project = var.project_id
-  region  = "asia-south1"
-}
+- **🧠 AI/ML**: Vertex AI Gemini embeddings (3072-dim) for semantic search and analysis
+- **📊 Graph Analytics**: Memgraph on GKE Autopilot (Neo4j-compatible, Cypher queries)
+- **☁️ Cloud Infrastructure**: 100% Google Cloud native services
+- **🔄 Real-time Processing**: Pub/Sub streaming with intelligent agent orchestration
+- **🎯 Vector Search**: BigQuery ML for hybrid analytics and similarity matching
 
-# 1. GKE Autopilot cluster for Memgraph
-resource "google_container_cluster" "memgraph" {
-  name     = "memgraph-ap"
-  location = "asia-south1"
-  enable_autopilot = true
-}
+### **System Components**
 
-# 2. Cloud Storage buckets
-resource "google_storage_bucket" "media" {
-  name          = "${var.project_id}-bengaluru-events-media"
-  location      = "ASIA-SOUTH1"
-  force_destroy = true
-}
+```mermaid
+graph TD
+    A[Incident Sources] --> B[Pub/Sub Streams]
+    B --> C[Real-time Processor]
+    C --> D[BigQuery + Vector Search]
+    C --> E[Firestore Real-time DB]
+    C --> F[Intelligent Agents]
+    F --> G[Notification System]
+    F --> H[Resource Allocation]
+    F --> I[Trend Analysis]
+    D --> J[FastAPI Service]
+    E --> K[Dashboard UI]
+    J --> L[External Integrations]
+```
 
-# 3. BigQuery dataset & vector search index
-resource "google_bigquery_dataset" "events" {
-  dataset_id = "bengaluru_events"
-  location   = "asia-south1"
-}
+## ✨ Key Features
 
-resource "google_bigquery_table" "embeddings" {
-  dataset_id = google_bigquery_dataset.events.dataset_id
-  table_id   = "embeddings"
-  schema     = file("embeddings_schema.json")
-}
+### **🚀 Real-Time Incident Management**
 
-# 4. Vertex AI Vector Search
-resource "google_vertex_ai_feature_store" "event_store" {
-  name     = "event_embeddings"
-  region   = "asia-south1"
-  online_serving_config { fixed_node_count = 1 }
-}
-Apply:
-bash
-Copy
+- **Multi-source Data Ingestion**: Citizen reports, sensors, social media, CCTV feeds
+- **Intelligent Classification**: 8 major incident categories with 32 sub-types
+- **Priority Scoring**: Dynamic priority assignment based on severity, location, and impact
+- **Automated Routing**: Smart assignment to appropriate departments (BBMP, Police, BESCOM, etc.)
+
+### **🤖 Intelligent Agent System**
+
+- **Notification Agent**: Emergency alerts and stakeholder communications
+- **Trend Analysis Agent**: Pattern recognition and predictive insights
+- **Resource Allocation Agent**: Optimal resource distribution and deployment
+- **News Insights Agent**: Daily summaries and hot topic identification
+
+### **🔍 Advanced Analytics**
+
+- **Semantic Search**: Natural language querying of incident data
+- **Geospatial Analysis**: Location-based filtering and radius searches
+- **Temporal Patterns**: Time-series analysis and trend prediction
+- **Cross-incident Correlation**: Relationship mapping between related events
+
+### **📱 Multi-Channel Interfaces**
+
+- **REST API**: Comprehensive endpoints for all system operations
+- **Real-time Dashboard**: Live incident monitoring and management
+- **Mobile-Ready**: Responsive design for field operations
+- **Integration APIs**: Webhook support for external systems
+
+## 🚀 Quick Start
+
+### **Prerequisites**
+
+```powershell
+# Required tools
+- Google Cloud Project with billing enabled
+- gcloud CLI (authenticated)
+- Terraform v1.0+
+- Python 3.8+
+- Docker & Docker Compose
+```
+
+### **1. Infrastructure Deployment**
+
+```powershell
+# Clone repository
+git clone https://github.com/sharan-zinios/city-pulse.git
+cd city-pulse
+
+# Set environment variables
+$env:PROJECT_ID="your-gcp-project-id"
+$env:GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
+
+# Deploy infrastructure
 cd infra
-terraform init && terraform apply -var="project_id=$PROJECT_ID"
-────────────────────────────
-2. Sample Bengaluru dataset generator
-────────────────────────────
-data_gen/generate.py
-Python
-Copy
-import random, json, uuid
-from datetime import datetime, timedelta
-from google.cloud import storage
+terraform init
+terraform apply -var="project_id=$env:PROJECT_ID"
+```
 
-PROJECT_ID = os.getenv("PROJECT_ID")
-BUCKET = f"{PROJECT_ID}-bengaluru-events-media"
+### **2. Local Development Setup**
 
-client = storage.Client()
-bucket = client.bucket(BUCKET)
+```powershell
+# Install dependencies
+pip install -r requirements.txt
 
-# 30 events
-events = []
-for i in range(30):
-    lat = random.uniform(12.8, 13.2)
-    lon = random.uniform(77.4, 77.8)
-    ev = {
-        "id": str(uuid.uuid4()),
-        "type": random.choice(["concert", "accident", "food_fair", "tech_meetup", "protest"]),
-        "lat": lat,
-        "lon": lon,
-        "place": random.choice(["MG Road", "Koramangala", "Indiranagar", "Jayanagar"]),
-        "timestamp": (datetime.utcnow() - timedelta(days=random.randint(0, 14))).isoformat(),
-        "text": f"{random.choice(['Loud', 'Peaceful', 'Massive'])} {random.choice(['crowd', 'traffic', 'gathering'])}",
-        "image_name": f"{uuid.uuid4()}.jpg",
-        "video_name": f"{uuid.uuid4()}.mp4"
-    }
-    # upload dummy media
-    bucket.blob(ev["image_name"]).upload_from_string(b"fake_img_bytes")
-    bucket.blob(ev["video_name"]).upload_from_string(b"fake_vid_bytes")
-    events.append(ev)
+# Generate sample data
+python data_gen/generate.py
 
-json.dump(events, open("events.json", "w"), indent=2)
-print("events.json + media in gs://", BUCKET)
-────────────────────────────
-3. Embeddings with Vertex AI gemini-embedding-001
-────────────────────────────
-embed/embed_and_load.py
-Python
-Copy
-import os, json, base64
-from google.cloud import aiplatform, bigquery
-from vertexai.language_models import TextEmbeddingModel
-from google.cloud import storage
+# Start local services
+docker-compose up -d
 
-aiplatform.init(project=os.getenv("PROJECT_ID"), location="asia-south1")
-model = TextEmbeddingModel.from_pretrained("gemini-embedding-001")
-bq = bigquery.Client()
+# Access dashboard
+# Open http://localhost:3002
+```
 
-events = json.load(open("events.json"))
-rows = []
-for ev in events:
-    # Text embedding
-    txt_emb = model.get_embeddings([ev["text"]])[0].values  # 3072-dim
-    # Image embedding via Cloud Vision API (or CLIP on Cloud Run)
-    # For demo we reuse text embedding
-    rows.append({
-        "event_id": ev["id"],
-        "embedding": txt_emb,
-        "type": ev["type"],
-        "lat": ev["lat"],
-        "lon": ev["lon"],
-        "timestamp": ev["timestamp"]
-    })
+### **3. Production Deployment**
 
-table = bq.dataset("bengaluru_events").table("embeddings")
-bq.load_table_from_json(rows, table)
-print("Embeddings loaded to BigQuery")
-Tips for cost & speed
-• Use output_dimensionality=768 to shrink storage 4× with minimal quality loss .
-• Batch 250 texts per call (API limit) .
-────────────────────────────
-4. Memgraph ingestion job on GKE
-────────────────────────────
-memgraph_job/job.yaml
-yaml
-Copy
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: ingest-events
-spec:
-  template:
-    spec:
-      containers:
-      - name: loader
-        image: memgraph/memgraph:2.14
-        command: ["/bin/bash","-c"]
-        args:
-          - |
-            apt-get update && apt-get install -y python3-pip
-            pip3 install google-cloud-storage neo4j
-            python3 /scripts/load_to_memgraph.py
-        volumeMounts:
-        - name: script
-          mountPath: /scripts
-      volumes:
-      - name: script
-        configMap:
-          name: loader-script
-      restartPolicy: OnFailure
-load_to_memgraph.py
-Python
-Copy
-import json, os
-from neo4j import GraphDatabase
-from google.cloud import storage
+```powershell
+# Deploy API service
+gcloud run deploy city-pulse-api --source . --region asia-south1 --allow-unauthenticated
 
-driver = GraphDatabase.driver("bolt://memgraph-service:7687", auth=("", ""))
-events = json.load(open("events.json"))
+# Deploy streaming processor
+gcloud run jobs create incident-processor --source streaming/ --region asia-south1
 
-with driver.session() as s:
-    for ev in events:
-        s.run("""
-            MERGE (e:Event {id:$id})
-            SET e.type=$type, e.timestamp=$ts, e.text=$text
-            MERGE (p:Place {name:$place})
-            SET p.lat=$lat, p.lon=$lon
-            MERGE (e)-[:AT]->(p)
-        """, id=ev["id"], type=ev["type"], ts=ev["timestamp"],
-              text=ev["text"], place=ev["place"], lat=ev["lat"], lon=ev["lon"])
-print("Loaded into Memgraph")
+# Deploy intelligent agents
+gcloud functions deploy agent-orchestrator --source agents/ --runtime python39
+```
+
+## � Complete Setup Guide
+
+### **Prerequisites Installation**
+
+#### **1. Install Required Tools**
+
+**Google Cloud CLI:**
+
+```powershell
+# Download and install gcloud CLI from https://cloud.google.com/sdk/docs/install
+# After installation, authenticate:
+gcloud auth login
+gcloud auth application-default login
+
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+```
+
+**Terraform:**
+
+```powershell
+# Using Chocolatey (recommended for Windows)
+choco install terraform
+
+# Or download from https://terraform.io/downloads
+# Verify installation
+terraform --version
+```
+
+**Python Environment:**
+
+```powershell
+# Ensure Python 3.8+ is installed
+python --version
+
+# Create virtual environment
+python -m venv city-pulse-env
+city-pulse-env\Scripts\activate
+
+# Upgrade pip
+python -m pip install --upgrade pip
+```
+
+**Docker & Docker Compose:**
+
+```powershell
+# Install Docker Desktop from https://docker.com/products/docker-desktop
+# Verify installation
+docker --version
+docker-compose --version
+```
+
+#### **2. Google Cloud Project Setup**
+
+```powershell
+# Create new project (or use existing)
+gcloud projects create YOUR_PROJECT_ID --name="City Pulse"
+
+# Set billing account (required for APIs)
+gcloud billing accounts list
+gcloud billing projects link YOUR_PROJECT_ID --billing-account=BILLING_ACCOUNT_ID
+
+# Enable required APIs
+gcloud services enable compute.googleapis.com
+gcloud services enable container.googleapis.com
+gcloud services enable storage.googleapis.com
+gcloud services enable bigquery.googleapis.com
+gcloud services enable aiplatform.googleapis.com
+gcloud services enable run.googleapis.com
+gcloud services enable pubsub.googleapis.com
+gcloud services enable cloudfunctions.googleapis.com
+gcloud services enable firestore.googleapis.com
+gcloud services enable monitoring.googleapis.com
+gcloud services enable logging.googleapis.com
+```
+
+#### **3. Service Account Setup**
+
+```powershell
+# Create service account
+gcloud iam service-accounts create city-pulse-sa --display-name="City Pulse Service Account"
+
+# Grant necessary permissions
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID `
+  --member="serviceAccount:city-pulse-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com" `
+  --role="roles/editor"
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID `
+  --member="serviceAccount:city-pulse-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com" `
+  --role="roles/aiplatform.user"
+
+# Create and download key
+gcloud iam service-accounts keys create city-pulse-key.json `
+  --iam-account=city-pulse-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com
+
+# Set environment variable
+$env:GOOGLE_APPLICATION_CREDENTIALS="$(pwd)\city-pulse-key.json"
+```
+
+### **Local Development Setup**
+
+#### **1. Repository Setup**
+
+```powershell
+# Clone the repository
+git clone https://github.com/sharan-zinios/city-pulse.git
+cd city-pulse
+
+# Create environment file
+@"
+PROJECT_ID=YOUR_PROJECT_ID
+GOOGLE_APPLICATION_CREDENTIALS=./city-pulse-key.json
+REGION=asia-south1
+"@ | Out-File -FilePath .env -Encoding UTF8
+```
+
+#### **2. Python Dependencies**
+
+```powershell
+# Activate virtual environment
+city-pulse-env\Scripts\activate
+
+# Install main dependencies
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r local_dev/requirements_local.txt
+
+# Install API dependencies
+pip install -r api/requirements.txt
+
+# Verify installations
+python -c "import google.cloud.bigquery; print('BigQuery client installed')"
+python -c "import vertexai; print('Vertex AI installed')"
+python -c "import fastapi; print('FastAPI installed')"
+```
+
+#### **3. Local Database Setup**
+
+```powershell
+# Generate local SQLite database for development
+python local_dev/generate_db.py
+
+# This creates:
+# - incidents_data.json (sample incident data)
+# - local_incidents.db (SQLite database)
+# - Realistic Bengaluru incident scenarios
+```
+
+#### **4. Local Testing**
+
+```powershell
+# Run unit tests
+python -m pytest local_dev/test_*.py -v
+
+# Test database connectivity
+python local_dev/test_db.py
+
+# Test local API
+python local_dev/test_local.py
+
+# Expected output: All tests should pass
+```
+
+### **Infrastructure Deployment**
+
+#### **1. Terraform Initialization**
+
+```powershell
+cd infra
+
+# Initialize Terraform
+terraform init
+
+# Create terraform.tfvars file
+@"
+project_id = "YOUR_PROJECT_ID"
+region     = "asia-south1"
+zone       = "asia-south1-a"
+"@ | Out-File -FilePath terraform.tfvars -Encoding UTF8
+
+# Validate configuration
+terraform validate
+```
+
+#### **2. Infrastructure Planning**
+
+```powershell
+# Review what will be created
+terraform plan
+
+# Expected resources:
+# - GKE Autopilot cluster
+# - BigQuery dataset and tables
+# - Cloud Storage buckets
+# - Pub/Sub topics and subscriptions
+# - IAM roles and service accounts
+# - Firestore database
+# - Vertex AI resources
+```
+
+#### **3. Infrastructure Deployment**
+
+```powershell
+# Deploy infrastructure (takes 10-15 minutes)
+terraform apply -auto-approve
+
+# Verify deployment
+gcloud container clusters list
+gcloud storage buckets list
+gcloud pubsub topics list
+gcloud firestore databases list
+
+# Get cluster credentials
+gcloud container clusters get-credentials memgraph-ap --region asia-south1
+```
+
+### **Data Pipeline Setup**
+
+#### **1. Sample Data Generation**
+
+```powershell
+# Set environment variables
+$env:PROJECT_ID="YOUR_PROJECT_ID"
+
+# Generate realistic incident data
+python data_gen/generate.py
+
+# This creates:
+# - 1000+ synthetic incidents
+# - Proper geographic distribution
+# - Realistic incident types and severities
+# - Media files in Cloud Storage
+```
+
+#### **2. Embedding Generation**
+
+```powershell
+# Generate vector embeddings
+python embed/embed_and_load.py
+
+# Process includes:
+# - Text embedding using Vertex AI
+# - Loading data into BigQuery
+# - Creating vector search index
+# - Enabling semantic search
+
+# Verify data loading
+bq query --use_legacy_sql=false "SELECT COUNT(*) FROM \`YOUR_PROJECT_ID.bengaluru_events.embeddings\`"
+```
+
+#### **3. Graph Database Setup**
+
+```powershell
+# Deploy Memgraph to GKE
+kubectl apply -f memgraph_job/memgraph-deployment.yaml
+
+# Wait for deployment
+kubectl get pods -l app=memgraph
+
+# Load data into graph
 kubectl apply -f memgraph_job/job.yaml
-────────────────────────────
-5. Cloud Run serving API
-────────────────────────────
-api/main.py
-Python
-Copy
-import os, json
-from fastapi import FastAPI, HTTPException
-from google.cloud import bigquery
-from neo4j import GraphDatabase
-from vertexai.language_models import ChatModel
 
-bq = bigquery.Client()
-driver = GraphDatabase.driver("bolt://memgraph-service:7687", auth=("", ""))
-chat = ChatModel.from_pretrained("gemini-1.5-flash-001").start_chat()
+# Verify graph loading
+kubectl logs jobs/ingest-events
+```
 
-app = FastAPI()
+### **Application Deployment**
 
-@app.post("/ask")
-def ask(question: str, lat: float, lon: float, radius_km: int = 5):
-    # 1. Vector search (BigQuery)
-    sql = f"""
-        SELECT event_id, embedding
-        FROM `bengaluru_events.embeddings`
-        WHERE ST_DISTANCE(ST_GEOGPOINT(lon, lat), ST_GEOGPOINT({lon}, {lat})) <= {radius_km}*1000
-        ORDER BY embedding <=> ML.GENERATE_EMBEDDING('{question}')
-        LIMIT 10
-    """
-    vec_rows = list(bq.query(sql).result())
+#### **1. API Service Deployment**
 
-    # 2. Graph traversal (Memgraph)
-    with driver.session() as s:
-        graph_rows = s.run("""
-            MATCH (e:Event)-[:AT]->(p:Place)
-            WHERE distance(point({longitude:p.lon, latitude:p.lat}),
-                           point({longitude:$lon, latitude:$lat})) < $r*1000
-            RETURN e.id, e.type, e.timestamp
-        """, lon=lon, lat=lat, r=radius_km).data()
+```powershell
+# Build and deploy API to Cloud Run
+gcloud run deploy city-pulse-api `
+  --source api/ `
+  --region asia-south1 `
+  --allow-unauthenticated `
+  --set-env-vars PROJECT_ID=$env:PROJECT_ID `
+  --memory 2Gi `
+  --cpu 2 `
+  --min-instances 1 `
+  --max-instances 100
 
-    # 3. Build context & predict
-    context = {"vector_events": vec_rows, "graph_events": graph_rows}
-    resp = chat.send_message(
-        f"Context: {json.dumps(context)}\nQuestion: {question}\nGive short insight / prediction."
-    )
-    return {"answer": resp.text}
-Dockerfile
-Copy
-FROM python:3.11-slim
-WORKDIR /app
-COPY api/requirements.txt .
-RUN pip install -r requirements.txt
-COPY api/ .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
-Deploy:
-bash
-Copy
-gcloud run deploy bengaluru-graphrag \
-  --source . \
-  --region asia-south1 \
-  --allow-unauthenticated
-────────────────────────────
-6. End-to-end test
-────────────────────────────
-bash
-Copy
-curl -X POST https://bengaluru-graphrag-******.a.run.app/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question":"What events near MG Road next week?","lat":12.98,"lon":77.60}'
-Example response:
-JSON
-Copy
+# Get service URL
+gcloud run services describe city-pulse-api --region asia-south1 --format "value(status.url)"
+```
+
+#### **2. Streaming Services Deployment**
+
+```powershell
+# Deploy real-time processor
+gcloud run jobs create incident-processor `
+  --image gcr.io/$env:PROJECT_ID/incident-processor `
+  --region asia-south1 `
+  --set-env-vars PROJECT_ID=$env:PROJECT_ID `
+  --memory 4Gi `
+  --cpu 2 `
+  --parallelism 10 `
+  --task-count 1
+
+# Deploy intelligent agents
+gcloud functions deploy agent-orchestrator `
+  --source agents/ `
+  --runtime python39 `
+  --trigger-topic incident-stream `
+  --region asia-south1 `
+  --memory 1024MB `
+  --timeout 540s `
+  --set-env-vars PROJECT_ID=$env:PROJECT_ID
+```
+
+#### **3. Frontend Dashboard Deployment**
+
+```powershell
+# Build and deploy dashboard
+cd client
+
+# Build Docker image
+docker build -t gcr.io/$env:PROJECT_ID/city-pulse-dashboard .
+docker push gcr.io/$env:PROJECT_ID/city-pulse-dashboard
+
+# Deploy to Cloud Run
+gcloud run deploy city-pulse-dashboard `
+  --image gcr.io/$env:PROJECT_ID/city-pulse-dashboard `
+  --region asia-south1 `
+  --allow-unauthenticated `
+  --port 3002
+```
+
+### **Local Development Mode**
+
+#### **1. Start Local Services**
+
+```powershell
+# Start all services using Docker Compose
+docker-compose up -d
+
+# Services started:
+# - Dashboard UI (http://localhost:3002)
+# - Incident Simulator (background)
+# - Local database
+
+# View logs
+docker-compose logs -f
+```
+
+#### **2. Development Workflow**
+
+```powershell
+# Start API in development mode
+cd api
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Start real-time simulator
+cd local_dev
+python realtime_simulator.py --dataset incidents_data.json
+
+# Access services:
+# - API: http://localhost:8000
+# - Dashboard: http://localhost:3002
+# - API Docs: http://localhost:8000/docs
+```
+
+#### **3. Testing and Validation**
+
+```powershell
+# Test API endpoints
+curl -X POST "http://localhost:8000/incidents/search" `
+  -H "Content-Type: application/json" `
+  -d '{
+    "question": "Show traffic accidents near MG Road",
+    "coordinates": [12.9716, 77.5946],
+    "radius_km": 5
+  }'
+
+# Test real-time features
+python local_dev/quick_test.js
+
+# Run comprehensive tests
+python -m pytest local_dev/ -v --cov=api --cov-report=html
+```
+
+### **Production Monitoring Setup**
+
+#### **1. Monitoring Configuration**
+
+```powershell
+# Create monitoring dashboard
+gcloud monitoring dashboards create --config-from-file=monitoring/dashboard.json
+
+# Set up alerting policies
+gcloud alpha monitoring policies create --policy-from-file=monitoring/alerts.yaml
+
+# Configure log-based metrics
+gcloud logging metrics create incident_errors --description="API error rate" `
+  --log-filter='resource.type="cloud_run_revision" AND severity>=ERROR'
+```
+
+#### **2. Health Checks**
+
+```powershell
+# Verify all services are healthy
+$apiUrl = gcloud run services describe city-pulse-api --region asia-south1 --format "value(status.url)"
+curl "$apiUrl/health"
+
+# Check agent functions
+gcloud functions describe agent-orchestrator --region asia-south1
+
+# Verify data pipeline
+bq query --use_legacy_sql=false "SELECT COUNT(*) as total_incidents FROM \`$env:PROJECT_ID.bengaluru_events.embeddings\` WHERE DATE(timestamp) = CURRENT_DATE()"
+```
+
+### **Environment Variables Reference**
+
+Create a `.env` file with the following variables:
+
+```bash
+# Required
+PROJECT_ID=your-gcp-project-id
+GOOGLE_APPLICATION_CREDENTIALS=./path/to/service-account.json
+REGION=asia-south1
+
+# Optional - API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+
+# Optional - Database Configuration
+BQ_DATASET=bengaluru_events
+BQ_TABLE=embeddings
+MEMGRAPH_URI=bolt://memgraph-service:7687
+
+# Optional - External Integrations
+TWILIO_SID=your-twilio-sid
+SENDGRID_API_KEY=your-sendgrid-key
+SLACK_WEBHOOK_URL=your-slack-webhook
+
+# Optional - Development
+DEBUG=true
+LOG_LEVEL=INFO
+ENABLE_CORS=true
+```
+
+### **Troubleshooting Common Issues**
+
+#### **Authentication Issues**
+
+```powershell
+# Re-authenticate if needed
+gcloud auth login
+gcloud auth application-default login
+
+# Verify service account permissions
+gcloud projects get-iam-policy YOUR_PROJECT_ID --flatten="bindings[].members" --filter="bindings.members:serviceAccount:city-pulse-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com"
+```
+
+#### **API Deployment Issues**
+
+```powershell
+# Check Cloud Run logs
+gcloud run services logs read city-pulse-api --region asia-south1
+
+# Verify environment variables
+gcloud run services describe city-pulse-api --region asia-south1 --format="export"
+```
+
+#### **Data Pipeline Issues**
+
+```powershell
+# Check BigQuery table schema
+bq show YOUR_PROJECT_ID:bengaluru_events.embeddings
+
+# Verify Vertex AI model access
+gcloud ai models list --region=asia-south1
+```
+
+## �📁 Project Structure
+
+```
+city-pulse/
+├── 🏗️ infra/                 # Terraform infrastructure as code
+│   ├── main.tf               # Core GCP resources
+│   ├── variables.tf          # Configuration variables
+│   └── embeddings_schema.json
+├── 🔄 streaming/             # Real-time data processing
+│   └── realtime_processor.py # Pub/Sub stream handler
+├── 🤖 agents/               # Intelligent agent system
+│   └── intelligent_agents.py # AI-powered automation
+├── 🌐 api/                  # FastAPI service layer
+│   ├── main.py              # REST API endpoints
+│   └── requirements.txt     # Service dependencies
+├── 📊 data_gen/             # Sample data generation
+│   └── generate.py          # Realistic incident simulator
+├── 🗄️ embed/               # ML embeddings pipeline
+│   └── embed_and_load.py    # Vector embedding generation
+├── 💻 client/               # Dashboard UI
+│   ├── server.js            # Node.js frontend server
+│   └── public/index.html    # Real-time dashboard
+├── 🚢 memgraph_job/         # Graph database deployment
+│   ├── job.yaml             # Kubernetes job spec
+│   └── memgraph-deployment.yaml
+└── 🔧 local_dev/           # Development utilities
+    ├── realtime_simulator.py
+    ├── generate_db.py
+    └── test_*.py            # Testing utilities
+```
+
+## 🛠️ Implementation Guide
+
+### **Phase 1: Infrastructure Setup**
+
+**1. Deploy Core Infrastructure**
+
+```powershell
+# Navigate to infrastructure directory
+cd infra
+
+# Initialize Terraform
+terraform init
+
+# Review planned changes
+terraform plan -var="project_id=$env:PROJECT_ID"
+
+# Deploy infrastructure
+terraform apply -var="project_id=$env:PROJECT_ID"
+```
+
+**Infrastructure Components:**
+
+- **GKE Autopilot Cluster**: Scalable Memgraph deployment
+- **BigQuery Dataset**: Data lake with vector search capabilities
+- **Cloud Storage**: Media and backup storage
+- **Pub/Sub Topics**: Real-time message streaming
+- **Firestore**: Live dashboard data
+- **Cloud Run**: Serverless API hosting
+
+### **Phase 2: Data Pipeline Setup**
+
+**1. Generate Sample Data**
+
+```powershell
+# Set environment variables
+$env:PROJECT_ID="your-project-id"
+
+# Generate realistic Bengaluru incident data
+python data_gen/generate.py
+
+# Output: Creates 1000+ incidents with proper categorization
+# - 8 major incident types (traffic, power, water, construction, etc.)
+# - Geographic distribution across Bengaluru wards
+# - Realistic severity levels and department assignments
+```
+
+**2. Process Embeddings**
+
+```powershell
+# Generate vector embeddings using Vertex AI
+python embed/embed_and_load.py
+
+# This process:
+# - Creates 3072-dimensional embeddings for text descriptions
+# - Loads data into BigQuery with vector search index
+# - Enables semantic search capabilities
+```
+
+### **Phase 3: Graph Database Deployment**
+
+**1. Deploy Memgraph on GKE**
+
+```powershell
+# Connect to GKE cluster
+gcloud container clusters get-credentials memgraph-ap --region asia-south1
+
+# Deploy Memgraph
+kubectl apply -f memgraph_job/memgraph-deployment.yaml
+
+# Load incident data into graph
+kubectl apply -f memgraph_job/job.yaml
+```
+
+**Graph Schema:**
+
+```cypher
+// Incident nodes with relationships
+(incident:Incident)-[:LOCATED_AT]->(location:Location)
+(incident:Incident)-[:ASSIGNED_TO]->(department:Department)
+(incident:Incident)-[:REPORTED_BY]->(source:Source)
+(location:Location)-[:IN_WARD]->(ward:Ward)
+(incident:Incident)-[:RELATED_TO]->(incident:Incident)
+```
+
+### **Phase 4: API Deployment**
+
+**1. Deploy FastAPI Service**
+
+```powershell
+# Deploy to Cloud Run
+gcloud run deploy city-pulse-api `
+  --source api/ `
+  --region asia-south1 `
+  --allow-unauthenticated `
+  --set-env-vars PROJECT_ID=$env:PROJECT_ID
+
+# Service provides:
+# - RESTful incident search and analysis
+# - Vector similarity search
+# - Graph-based relationship queries
+# - Real-time incident streaming
+```
+
+### **Phase 5: Real-time Processing**
+
+**1. Deploy Streaming Components**
+
+```powershell
+# Deploy real-time processor
+gcloud run jobs create incident-processor `
+  --source streaming/ `
+  --region asia-south1 `
+  --set-env-vars PROJECT_ID=$env:PROJECT_ID
+
+# Deploy intelligent agents
+gcloud functions deploy agent-orchestrator `
+  --source agents/ `
+  --runtime python39 `
+  --trigger-topic incident-stream
+```
+
+## 🔌 API Reference
+
+### **Core Endpoints**
+
+#### **Incident Search**
+
+```http
+POST /incidents/search
+Content-Type: application/json
+
 {
-  "answer": "Based on past 2 weeks, concerts spike near MG Road every Thursday. 78 % probability of a tech-meetup or concert this coming Thursday 7-9 PM."
+  "question": "Show me traffic accidents near Electronic City",
+  "coordinates": [12.8456, 77.6603],
+  "radius_km": 5,
+  "event_types": ["traffic_accident"],
+  "time_range_hours": 24
 }
-────────────────────────────
-7. BigQuery & cost optimizations
-────────────────────────────
-• Partition embeddings by DATE(timestamp) to scan only needed days .
-• Cluster by (lat, lon) so radius queries prune blocks .
-• Use INT64 surrogate keys instead of STRING event IDs in joins .
-• Pre-aggregate daily counts into a materialized view for prediction models .
-────────────────────────────
-8. Scaling checklist
-────────────────────────────
-✅ GKE Autopilot will scale Memgraph pods automatically.
-✅ BigQuery slot reservations when > 50 TB/day scanned.
-✅ Cloud CDN in front of Cloud Storage for media.
-✅ Vertex AI Feature Store for low-latency online retrieval.
-You now have a fully-managed, Google-native Graph-RAG stack ready for petabyte-scale Bengaluru event data.
+```
+
+**Response:**
+
+```json
+{
+  "query": "Show me traffic accidents near Electronic City",
+  "location": { "lat": 12.8456, "lon": 77.6603, "radius_km": 5 },
+  "results_count": 12,
+  "incidents": [
+    {
+      "id": "inc_001",
+      "event_type": "traffic_accident",
+      "sub_category": "minor_collision",
+      "description": "Two-wheeler collision at traffic signal",
+      "location_name": "Electronic City Phase 1",
+      "severity_level": "medium",
+      "priority_score": 6.8,
+      "coordinates": [12.8445, 77.6589],
+      "timestamp": "2025-01-27T14:30:00Z",
+      "assigned_department": "Traffic_Police",
+      "event_status": "in_progress"
+    }
+  ]
+}
+```
+
+#### **AI-Powered Analysis**
+
+```http
+POST /incidents/analyze
+Content-Type: application/json
+
+{
+  "question": "What's the trend for power outages this month?",
+  "coordinates": [12.9716, 77.5946],
+  "radius_km": 10,
+  "analysis_type": "trend_prediction"
+}
+```
+
+#### **Real-time Incident Reporting**
+
+```http
+POST /incidents/report
+Content-Type: application/json
+
+{
+  "event_type": "pothole",
+  "description": "Large pothole causing traffic disruption",
+  "coordinates": [12.9352, 77.6245],
+  "severity_level": "high",
+  "source": "citizen_report",
+  "media_urls": ["gs://bucket/image1.jpg"],
+  "reporter_contact": "+91XXXXXXXXXX"
+}
+```
+
+### **Graph Query Endpoints**
+
+#### **Relationship Analysis**
+
+```http
+GET /graph/relationships?incident_id=inc_001&depth=2
+```
+
+#### **Hotspot Identification**
+
+```http
+GET /graph/hotspots?event_type=traffic_accident&time_window=7d
+```
+
+## 🤖 Intelligent Agents
+
+### **Agent Architecture**
+
+Each agent is designed as an autonomous service that processes specific tasks triggered by incident events or scheduled operations.
+
+#### **1. Notification Agent**
+
+- **Purpose**: Stakeholder communication and emergency alerts
+- **Triggers**: High-priority incidents (score ≥ 8.0)
+- **Actions**: SMS, email, app notifications, department alerts
+- **Integration**: Twilio, SendGrid, Slack
+
+#### **2. Trend Analysis Agent**
+
+- **Purpose**: Pattern recognition and predictive insights
+- **Triggers**: Daily/weekly scheduled runs or incident clusters
+- **Actions**: Trend reports, anomaly detection, forecast generation
+- **ML Models**: Time-series analysis, clustering algorithms
+
+#### **3. Resource Allocation Agent**
+
+- **Purpose**: Optimal resource distribution and deployment
+- **Triggers**: Multiple concurrent incidents or resource requests
+- **Actions**: Personnel assignment, equipment allocation, route optimization
+- **Algorithms**: Constraint optimization, graph algorithms
+
+#### **4. News Insights Agent**
+
+- **Purpose**: Public communication and transparency
+- **Triggers**: End-of-day processing or significant events
+- **Actions**: Summary generation, hot topic identification, report compilation
+- **Output**: Daily briefs, weekly reports, public dashboards
+
+## 🔍 Advanced Analytics
+
+### **Vector Search Capabilities**
+
+```python
+# Semantic incident search
+def search_similar_incidents(query_text, coordinates, radius_km=5):
+    embedding = model.get_embeddings([query_text])[0].values
+
+    sql = f"""
+    SELECT id, description, similarity_score
+    FROM `{project}.bengaluru_events.embeddings`
+    WHERE ST_DISTANCE(
+        ST_GEOGPOINT(coordinates[OFFSET(1)], coordinates[OFFSET(0)]),
+        ST_GEOGPOINT({coordinates[1]}, {coordinates[0]})
+    ) <= {radius_km} * 1000
+    ORDER BY COSINE_DISTANCE(embedding, {embedding}) ASC
+    LIMIT 20
+    """
+    return list(bq.query(sql).result())
+```
+
+### **Graph Analytics**
+
+```cypher
+// Find incident clusters in specific area
+MATCH (i:Incident)-[:LOCATED_AT]->(l:Location)
+WHERE l.ward_number = 150
+  AND i.timestamp > datetime() - duration('P7D')
+WITH l, count(i) as incident_count
+WHERE incident_count > 5
+RETURN l.name, incident_count
+ORDER BY incident_count DESC
+
+// Identify recurring incident patterns
+MATCH (i1:Incident)-[:LOCATED_AT]->(l:Location)<-[:LOCATED_AT]-(i2:Incident)
+WHERE i1.event_type = i2.event_type
+  AND abs(duration.between(i1.timestamp, i2.timestamp).days) <= 7
+RETURN l.name, i1.event_type, count(*) as pattern_frequency
+ORDER BY pattern_frequency DESC
+```
+
+## 📊 Monitoring & Observability
+
+### **System Health Monitoring**
+
+- **Cloud Monitoring**: Infrastructure metrics and alerting
+- **Application Performance**: API response times and error rates
+- **Data Pipeline**: Processing delays and failure rates
+- **Agent Performance**: Task completion rates and processing times
+
+### **Business Metrics**
+
+- **Incident Resolution Time**: Average time from report to resolution
+- **Department Efficiency**: Performance metrics by assigned department
+- **Geographic Hotspots**: Areas with highest incident density
+- **Trend Analysis**: Month-over-month incident pattern changes
+
+### **Custom Dashboards**
+
+```python
+# Example monitoring query
+def get_system_health_metrics():
+    metrics = {
+        "incidents_per_hour": get_incident_rate(),
+        "avg_response_time": get_avg_response_time(),
+        "agent_success_rate": get_agent_success_rate(),
+        "storage_usage": get_storage_metrics(),
+        "api_uptime": get_api_uptime()
+    }
+    return metrics
+```
+
+## 🚦 Performance Optimization
+
+### **Cost Management**
+
+- **BigQuery**: Partitioned tables by date, clustered by location
+- **Cloud Storage**: Lifecycle policies for media cleanup
+- **Compute**: Auto-scaling based on demand patterns
+- **Vector Search**: Optimized embedding dimensions (768 vs 3072)
+
+### **Scaling Strategies**
+
+```terraform
+# Auto-scaling configuration
+resource "google_cloud_run_v2_service" "api" {
+  template {
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 100
+    }
+
+    containers {
+      resources {
+        limits = {
+          cpu    = "2"
+          memory = "4Gi"
+        }
+      }
+    }
+  }
+}
+```
+
+### **Performance Benchmarks**
+
+- **API Response Time**: < 200ms for search queries
+- **Vector Search**: < 500ms for similarity searches
+- **Real-time Processing**: < 5s incident-to-notification latency
+- **Graph Queries**: < 1s for relationship analysis
+
+## 🔐 Security & Compliance
+
+### **Data Protection**
+
+- **Encryption**: Data encrypted at rest and in transit
+- **Access Control**: IAM-based service authentication
+- **API Security**: Rate limiting and request validation
+- **Audit Logging**: Complete activity tracking
+
+### **Privacy Considerations**
+
+- **Data Anonymization**: PII scrubbing for public datasets
+- **Retention Policies**: Automated data lifecycle management
+- **Consent Management**: User permission tracking
+- **GDPR Compliance**: Right to deletion implementation
+
+## 🤝 Contributing
+
+### **Development Setup**
+
+```powershell
+# Fork and clone repository
+git clone https://github.com/your-username/city-pulse.git
+cd city-pulse
+
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate
+
+# Install development dependencies
+pip install -r requirements.txt
+pip install -r local_dev/requirements_local.txt
+
+# Run tests
+python -m pytest local_dev/test_*.py
+```
+
+### **Code Standards**
+
+- **Python**: PEP 8 compliance, type hints required
+- **Documentation**: Comprehensive docstrings and comments
+- **Testing**: Minimum 80% code coverage
+- **Git**: Conventional commit messages
+
+### **Contribution Guidelines**
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Google Cloud Platform** for comprehensive infrastructure services
+- **Memgraph** for high-performance graph database capabilities
+- **Vertex AI** for advanced ML and embedding models
+- **FastAPI** for modern, fast web API framework
+- **Open Source Community** for various tools and libraries used
+
+## 📞 Support
+
+- **Documentation**: [docs.city-pulse.dev](https://docs.city-pulse.dev)
+- **Issues**: [GitHub Issues](https://github.com/sharan-zinios/city-pulse/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/sharan-zinios/city-pulse/discussions)
+- **Email**: support@city-pulse.dev
+
+---
+
+**Built with ❤️ for smarter cities and better urban management**
