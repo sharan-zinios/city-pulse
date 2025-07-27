@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD1A-o_CUmrwXAGu3xN6bXKUy7_toQB7xc" async defer></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -78,6 +79,7 @@
                 }
             });
             const [isConnected, setIsConnected] = useState(false);
+            const [mapPopup, setMapPopup] = useState({ show: false, incident: null });
             const socketRef = useRef(null);
 
             useEffect(() => {
@@ -127,6 +129,16 @@
                 };
             }, []);
 
+            // Handle location button click
+            const handleLocationClick = (incident) => {
+                setMapPopup({ show: true, incident });
+            };
+
+            // Close map popup
+            const closeMapPopup = () => {
+                setMapPopup({ show: false, incident: null });
+            };
+
             return (
                 <div className="min-h-screen bg-gray-900 p-6">
                     <Header isConnected={isConnected} />
@@ -134,7 +146,7 @@
                         <div className="lg:col-span-2 space-y-6">
                             <StatsPanel stats={stats} />
                             <AIInsights insights={aiInsights} />
-                            <IncidentFeed incidents={incidents} />
+                            <IncidentFeed incidents={incidents} onLocationClick={handleLocationClick} />
                         </div>
                         <div className="space-y-6">
                             <NotificationPanel notifications={notifications} />
@@ -142,6 +154,14 @@
                             <IncidentMap incidents={incidents.slice(0, 10)} />
                         </div>
                     </div>
+                    
+                    {/* Map Popup Modal */}
+                    {mapPopup.show && (
+                        <MapPopup 
+                            incident={mapPopup.incident} 
+                            onClose={closeMapPopup} 
+                        />
+                    )}
                 </div>
             );
         }
@@ -390,7 +410,7 @@
         }
 
         // Incident Feed Component
-        function IncidentFeed({ incidents }) {
+        function IncidentFeed({ incidents, onLocationClick }) {
             return (
                 <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
@@ -408,7 +428,7 @@
                             </div>
                         ) : (
                             incidents.map((incident, index) => (
-                                <IncidentCard key={incident.id || index} incident={incident} />
+                                <IncidentCard key={incident.id || index} incident={incident} onLocationClick={onLocationClick} />
                             ))
                         )}
                     </div>
@@ -417,7 +437,7 @@
         }
 
         // Individual Incident Card
-        function IncidentCard({ incident }) {
+        function IncidentCard({ incident, onLocationClick }) {
             const getPriorityColor = (priority) => {
                 if (priority >= 8) return 'border-red-500 bg-red-900 bg-opacity-20';
                 if (priority >= 6) return 'border-yellow-500 bg-yellow-900 bg-opacity-20';
@@ -460,10 +480,22 @@
                                     </span>
                                 </div>
                                 <p className="text-gray-300 text-sm mt-1">{incident.description}</p>
-                                <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
-                                    <span><i className="fas fa-map-marker-alt mr-1"></i>{incident.location_name}</span>
-                                    <span><i className="fas fa-building mr-1"></i>{incident.assigned_department}</span>
-                                    <span><i className="fas fa-clock mr-1"></i>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+                                <div className="flex items-center justify-between mt-2">
+                                    <div className="flex items-center space-x-4 text-xs text-gray-400">
+                                        <span><i className="fas fa-map-marker-alt mr-1"></i>{incident.location_name}</span>
+                                        <span><i className="fas fa-building mr-1"></i>{incident.assigned_department}</span>
+                                        <span><i className="fas fa-clock mr-1"></i>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+                                    </div>
+                                    {incident.latitude && incident.longitude && (
+                                        <button 
+                                            onClick={() => onLocationClick && onLocationClick(incident)}
+                                            className="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs text-white transition-colors flex items-center"
+                                            title="View on Map"
+                                        >
+                                            <i className="fas fa-map-pin mr-1"></i>
+                                            Map
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -588,6 +620,170 @@
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Map Popup Component
+        function MapPopup({ incident, onClose }) {
+            const mapRef = useRef(null);
+            const mapInstance = useRef(null);
+
+            useEffect(() => {
+                // Initialize map when component mounts
+                if (window.google && window.google.maps && mapRef.current && !mapInstance.current) {
+                    const { latitude, longitude } = incident;
+                    
+                    mapInstance.current = new window.google.maps.Map(mapRef.current, {
+                        center: { lat: latitude, lng: longitude },
+                        zoom: 16,
+                        styles: [
+                            {
+                                elementType: "geometry",
+                                stylers: [{ color: "#1f2937" }]
+                            },
+                            {
+                                elementType: "labels.text.stroke",
+                                stylers: [{ color: "#1f2937" }]
+                            },
+                            {
+                                elementType: "labels.text.fill",
+                                stylers: [{ color: "#9ca3af" }]
+                            },
+                            {
+                                featureType: "road",
+                                elementType: "geometry",
+                                stylers: [{ color: "#374151" }]
+                            },
+                            {
+                                featureType: "water",
+                                elementType: "geometry",
+                                stylers: [{ color: "#1e293b" }]
+                            }
+                        ]
+                    });
+
+                    // Add marker for the incident
+                    const marker = new window.google.maps.Marker({
+                        position: { lat: latitude, lng: longitude },
+                        map: mapInstance.current,
+                        title: incident.description,
+                        icon: {
+                            path: window.google.maps.SymbolPath.CIRCLE,
+                            scale: 12,
+                            fillColor: getPriorityMarkerColor(incident.priority_score),
+                            fillOpacity: 1,
+                            strokeColor: '#fff',
+                            strokeWeight: 2
+                        }
+                    });
+
+                    // Add info window
+                    const infoWindow = new window.google.maps.InfoWindow({
+                        content: `
+                            <div style="color: #000; max-width: 300px;">
+                                <h3 style="margin: 0 0 8px 0; font-weight: bold;">
+                                    ${incident.event_type?.replace('_', ' ').toUpperCase()}
+                                </h3>
+                                <p style="margin: 4px 0;"><strong>Location:</strong> ${incident.location_name}</p>
+                                <p style="margin: 4px 0;"><strong>Priority:</strong> ${incident.priority_score}</p>
+                                <p style="margin: 4px 0;"><strong>Status:</strong> ${incident.event_status}</p>
+                                <p style="margin: 4px 0;"><strong>Department:</strong> ${incident.assigned_department}</p>
+                                <p style="margin: 4px 0;"><strong>Time:</strong> ${new Date(incident.timestamp).toLocaleString()}</p>
+                                <p style="margin: 8px 0 0 0; font-size: 12px;">${incident.description}</p>
+                            </div>
+                        `
+                    });
+
+                    // Auto-open info window
+                    infoWindow.open(mapInstance.current, marker);
+                }
+            }, [incident]);
+
+            const getPriorityMarkerColor = (priority) => {
+                if (priority >= 8) return '#ef4444'; // Red for high priority
+                if (priority >= 6) return '#f59e0b'; // Yellow for medium priority
+                return '#10b981'; // Green for low priority
+            };
+
+            // Handle backdrop click
+            const handleBackdropClick = (e) => {
+                if (e.target === e.currentTarget) {
+                    onClose();
+                }
+            };
+
+            return (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    onClick={handleBackdropClick}
+                >
+                    <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="text-xl font-bold text-white flex items-center">
+                                    <i className="fas fa-map-pin mr-2 text-blue-400"></i>
+                                    {incident.event_type?.replace('_', ' ').toUpperCase()}
+                                </h2>
+                                <p className="text-gray-400 text-sm mt-1">{incident.location_name}</p>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className="text-gray-400 hover:text-white transition-colors p-2"
+                                title="Close"
+                            >
+                                <i className="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+
+                        {/* Map Container */}
+                        <div 
+                            ref={mapRef} 
+                            className="w-full h-96 rounded-lg bg-gray-700"
+                            style={{ minHeight: '400px' }}
+                        >
+                            {!window.google && (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-gray-400">
+                                        <i className="fas fa-map text-3xl mb-2 pulse-animation"></i>
+                                        <p>Loading Map...</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Incident Details */}
+                        <div className="mt-4 p-4 bg-gray-700 rounded-lg">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <span className="text-gray-400">Priority:</span>
+                                    <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                                        incident.priority_score >= 8 ? 'bg-red-600' :
+                                        incident.priority_score >= 6 ? 'bg-yellow-600' : 'bg-green-600'
+                                    }`}>
+                                        {incident.priority_score}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400">Status:</span>
+                                    <span className="text-white ml-2">{incident.event_status}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400">Department:</span>
+                                    <span className="text-white ml-2">{incident.assigned_department}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400">Time:</span>
+                                    <span className="text-white ml-2">{new Date(incident.timestamp).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div className="mt-3">
+                                <span className="text-gray-400">Description:</span>
+                                <p className="text-white mt-1">{incident.description}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
