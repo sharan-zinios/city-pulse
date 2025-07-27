@@ -7,11 +7,14 @@ const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Load environment variables
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: "*",
+        origin: process.env.CORS_ORIGIN || "*",
         methods: ["GET", "POST"]
     }
 });
@@ -23,9 +26,32 @@ app.use(express.static('public'));
 
 // Configuration
 const PORT = process.env.PORT || 3002;
-const DB_PATH = '/home/varshith/Desktop/city-pulse-new/local_dev/local_incidents.db';
-const AGENT_DB_PATH = '/home/varshith/Desktop/city-pulse-new/local_dev/local_incidents.db';
-const GEMINI_API_KEY = 'AIzaSyAexl1B96BaGsyDN27BKJhZ5YeTkI_dkV8';
+const DB_PATH = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV 
+    ? process.env.DOCKER_DB_PATH 
+    : process.env.DB_PATH;
+const AGENT_DB_PATH = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV 
+    ? process.env.DOCKER_AGENT_DB_PATH 
+    : process.env.AGENT_DB_PATH;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+// Validate required environment variables
+if (!GEMINI_API_KEY) {
+    console.error('❌ GEMINI_API_KEY is required. Please set it in your .env file.');
+    process.exit(1);
+}
+
+if (!DB_PATH || !AGENT_DB_PATH) {
+    console.error('❌ Database paths are required. Please set DB_PATH and AGENT_DB_PATH in your .env file.');
+    process.exit(1);
+}
+
+console.log('🔧 Configuration loaded:');
+console.log(`   - Port: ${PORT}`);
+console.log(`   - Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   - DB Path: ${DB_PATH}`);
+console.log(`   - Agent DB Path: ${AGENT_DB_PATH}`);
+console.log(`   - Gemini Model: ${GEMINI_MODEL}`);
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -607,16 +633,21 @@ function monitorAgentActivity() {
 }
 
 // Periodic tasks
+const STATS_UPDATE_INTERVAL = parseInt(process.env.STATS_UPDATE_INTERVAL) || 2000;
+const STATS_BROADCAST_INTERVAL = parseInt(process.env.STATS_BROADCAST_INTERVAL) || 10000;
+
 setInterval(() => {
     updateStats();
     monitorIncidents();
     monitorAgentActivity();
-}, 2000); // Check every 2 seconds
+}, STATS_UPDATE_INTERVAL);
 
 setInterval(() => {
-    // Broadcast stats every 10 seconds
+    // Broadcast stats
     io.emit('stats_update', stats);
-}, 10000);
+}, STATS_BROADCAST_INTERVAL);
+
+console.log(`⏱️  Update intervals configured: Stats=${STATS_UPDATE_INTERVAL}ms, Broadcast=${STATS_BROADCAST_INTERVAL}ms`);
 
 // Initialize
 initializeDatabases();

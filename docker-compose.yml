@@ -10,9 +10,13 @@ services:
     volumes:
       - ./local_dev:/app/local_dev  # Mount local_dev directory
       - dashboard-data:/app/data
+      - ./.env:/app/.env:ro  # Mount environment file
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - DOCKER_ENV=true
       - PORT=3002
+    env_file:
+      - .env
     depends_on:
       - simulator
     networks:
@@ -34,11 +38,11 @@ services:
       - ./local_dev:/app/local_dev  # Mount local_dev directory
       - ./historical_incidents.json:/app/historical_incidents.json:ro
       - simulator-data:/app/data
+      - ./.env:/app/.env:ro  # Mount environment file
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - DATASET_FILE=/app/historical_incidents.json
-      - BATCH_SIZE=7
-      - BATCH_INTERVAL=20
     networks:
       - city-pulse-network
     restart: unless-stopped
