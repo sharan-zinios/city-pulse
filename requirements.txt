@@ -32,7 +32,7 @@ aiofiles==23.2.1
 # Development and testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 
 # Additional utilities for real-time processing
 concurrent-futures==3.1.1
